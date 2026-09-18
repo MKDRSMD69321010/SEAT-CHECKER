@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자습 미신청 좌석 분류 프로그램 (계정/클라우드 연동)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-white border-b border-slate-200 py-4 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                자습 미신청 좌석 대조 프로그램
+            </h1>
+            
+            <!-- User Profile & Sync Tab Area -->
+            <div class="flex items-center gap-3">
+                <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span id="userUidDisplay" class="font-mono text-slate-600 truncate max-w-[120px]">로그인 중...</span>
+                </div>
+                <button onclick="toggleCloudSave()" id="cloudSyncBtn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs px-3.5 py-2 rounded-xl transition border border-indigo-100 flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    내 입력값 클라우드 저장
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+        <!-- Instructions Panel -->
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 shadow-sm">
+            <h2 class="text-sm font-semibold text-blue-900 mb-1 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                중복 입력 및 오름차순 정렬 안내
+            </h2>
+            <p class="text-xs text-blue-800 leading-relaxed">
+                좌석 번호가 중복으로 입력된 경우, 프로그램 내부에서 <strong>자동으로 중복을 제거(1개만 인식)</strong>하여 오탐지나 중복 카운트를 방지합니다. 또한 대조 실행 시 각 층별 번호가 <strong>오름차순(작은 번호에서 큰 번호 순)</strong>으로 자동 정렬됩니다.
+            </p>
+        </div>
+
+        <!-- Input Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Left Input: Applied Seats -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <label for="appliedInput" class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        자습 신청 좌석 목록
+                    </label>
+                    <button onclick="clearInput('appliedInput')" class="text-xs text-slate-400 hover:text-slate-600 transition">지우기</button>
+                </div>
+                <textarea id="appliedInput" rows="10" placeholder="예시:&#10;2-020&#10;2-031&#10;2-099" class="w-full p-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono"></textarea>
+                <div class="mt-2 text-right text-xs text-slate-400">인식된 좌석 수: <span id="appliedCount" class="font-bold text-slate-600">0</span>개</div>
+            </div>
+
+            <!-- Right Input: Current Seats -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <label for="currentInput" class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                        실제 공부 중인 좌석 목록
+                    </label>
+                    <button onclick="clearInput('currentInput')" class="text-xs text-slate-400 hover:text-slate-600 transition">지우기</button>
+                </div>
+                <textarea id="currentInput" rows="10" placeholder="예시:&#10;2-020&#10;2-168&#10;5-001" class="w-full p-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none font-mono"></textarea>
+                <div class="mt-2 text-right text-xs text-slate-400">인식된 좌석 수: <span id="currentCount" class="font-bold text-slate-600">0</span>개</div>
+            </div>
+        </div>
+
+        <!-- Action Controls -->
+        <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+            <button onclick="compareSeats()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                층별 좌석 대조 및 분류하기
+            </button>
+            <button onclick="loadSampleData()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-5 py-3 rounded-xl transition-all text-sm">
+                샘플 데이터 불러오기
+            </button>
+        </div>
+
+        <!-- Results Panel -->
+        <div id="resultSection" class="space-y-6 hidden">
+            <!-- Unauthorized Section (미신청 공부자) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-2">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500"></span>
+                            층별 자습 미신청 공부자 명단
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">실제 공부 중이나 신청 내역이 없는 좌석이 층별 및 오름차순으로 정렬되어 있습니다.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="unauthorizedCountBadge" class="bg-rose-50 text-rose-700 font-bold text-sm px-3 py-1 rounded-lg border border-rose-100">0명 발견</span>
+                        <button onclick="copyResults('unauthorizedContent', '미신청 좌석 번호')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            결과 복사
+                        </button>
+                    </div>
+                </div>
+                <div id="unauthorizedContent" class="space-y-4"></div>
+            </div>
+
+            <!-- Absent / Left Section (신청 후 하원/미등교자) -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-2">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                            층별 자습 신청 후 하원(미등교)자 명단
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">자습은 신청했으나 실제 공부 중인 목록에 없는 좌석이 층별 및 오름차순으로 정렬되어 있습니다.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="absentCountBadge" class="bg-amber-50 text-amber-700 font-bold text-sm px-3 py-1 rounded-lg border border-amber-100">0명 발견</span>
+                        <button onclick="copyResults('absentContent', '하원 좌석 번호')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-lg transition font-medium flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            결과 복사
+                        </button>
+                    </div>
+                </div>
+                <div id="absentContent" class="space-y-4"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        자습 미신청 및 하원 좌석 분류 프로그램 &copy; 2026 (Cloud & Sort Enabled)
+    </footer>
+
+    <!-- Custom Notification Box -->
+    <div id="customModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-slate-100 text-center">
+            <h4 id="modalTitle" class="font-bold text-slate-800 text-base mb-2">알림</h4>
+            <p id="modalMessage" class="text-xs text-slate-600 mb-5 leading-relaxed"></p>
+            <button onclick="closeModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition">확인</button>
+        </div>
+    </div>
+
+    <!-- Firebase & Cloud Sync Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        let app, db, auth;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'seat-checker-app';
+
+        async function initFirebase() {
+            try {
+                if (typeof __firebase_config !== 'undefined') {
+                    const firebaseConfig = JSON.parse(__firebase_config);
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            currentUser = user;
+                            document.getElementById('userUidDisplay').textContent = user.uid.substring(0, 8) + '...';
+                            document.getElementById('userProfileBadge').classList.remove('hidden');
+                            document.getElementById('userProfileBadge').classList.add('flex');
+                            loadCloudData();
+                        }
+                    });
+                }
+            } catch (e) {
+                console.warn("Cloud connection fallback mode active:", e);
+            }
+        }
+
+        window.toggleCloudSave = async function() {
+            if (!db || !currentUser) {
+                showModal("클라우드 알림", "현재 오프라인 모드이거나 인증이 진행 중입니다. 잠시 후 다시 시도해주세요.");
+                return;
+            }
+
+            const appliedText = document.getElementById('appliedInput').value;
+            const currentText = document.getElementById('currentInput').value;
+
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'seatData', 'latest');
+                await setDoc(docRef, {
+                    appliedText: appliedText,
+                    currentText: currentText,
+                    updatedAt: new Date().toISOString()
+                });
+                showModal("저장 완료", "현재 입력하신 좌석 목록이 클라우드 계정에 성공적으로 동기화되었습니다.");
+            } catch (err) {
+                console.error(err);
+                showModal("저장 실패", "클라우드 저장 중 오류가 발생했습니다.");
+            }
+        }
+
+        async function loadCloudData() {
+            if (!db || !currentUser) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'seatData', 'latest');
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.appliedText) {
+                        document.getElementById('appliedInput').value = data.appliedText;
+                        updateCount('appliedInput', 'appliedCount');
+                    }
+                    if (data.currentText) {
+                        document.getElementById('currentInput').value = data.currentText;
+                        updateCount('currentInput', 'currentCount');
+                    }
+                    if (data.appliedText || data.currentText) {
+                        compareSeats();
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not load cloud data:", err);
+            }
+        }
+
+        initFirebase();
+    </script>
+
+    <script>
+        // Real-time counter updates
+        document.getElementById('appliedInput').addEventListener('input', () => updateCount('appliedInput', 'appliedCount'));
+        document.getElementById('currentInput').addEventListener('input', () => updateCount('currentInput', 'currentCount'));
+
+        // 좌석 파싱 및 중복 자동 제거 함수 (Set을 통해 중복 입력 건 방지)
+        function parseSeats(text) {
+            if (!text) return [];
+            const rawList = text
+                .split(/[\r\n,\s]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+            
+            // 중복 제거 후 반환
+            return Array.from(new Set(rawList));
+        }
+
+        function updateCount(inputId, countId) {
+            const text = document.getElementById(inputId).value;
+            const seats = parseSeats(text);
+            document.getElementById(countId).textContent = seats.length;
+        }
+
+        function clearInput(inputId) {
+            document.getElementById(inputId).value = '';
+            if (inputId === 'appliedInput') {
+                document.getElementById('appliedCount').textContent = '0';
+            } else {
+                document.getElementById('currentCount').textContent = '0';
+            }
+        }
+
+        function loadSampleData() {
+            document.getElementById('appliedInput').value = "2-020\n2-031\n2-099\n2-168\n5-001\n6-116\n8-107";
+            document.getElementById('currentInput').value = "2-020\n2-031\n3-045\n5-001\n6-116\n7-088\n8-107\n3-102\n5-015\n2-020"; // 중복 포함 샘플
+            updateCount('appliedInput', 'appliedCount');
+            updateCount('currentInput', 'currentCount');
+            compareSeats();
+        }
+
+        function groupSeatsByFloor(seatsList) {
+            const floorGroups = {};
+            
+            seatsList.forEach(seat => {
+                let floorKey = "기타";
+                const match = seat.match(/^(\d+)/);
+                if (match) {
+                    floorKey = match[1] + "층";
+                } else if (seat.length > 0) {
+                    floorKey = seat.charAt(0) + "층";
+                }
+
+                if (!floorGroups[floorKey]) {
+                    floorGroups[floorKey] = [];
+                }
+                floorGroups[floorKey].push(seat);
+            });
+
+            return floorGroups;
+        }
+
+        function renderFloorGroups(containerId, floorGroups, badgeId, totalCount, itemType) {
+            const container = document.getElementById(containerId);
+            const badge = document.getElementById(badgeId);
+            
+            badge.textContent = `${totalCount}명 발견`;
+            container.innerHTML = '';
+
+            // 층 이름 오름차순 정렬 (예: 2층, 3층, 5층...)
+            const sortedFloors = Object.keys(floorGroups).sort((a, b) => {
+                const numA = parseInt(a) || 0;
+                const numB = parseInt(b) || 0;
+                return numA - numB;
+            });
+
+            if (totalCount === 0) {
+                let message = itemType === 'unauthorized' 
+                    ? "미신청 후 공부 중인 학생이 없습니다! 모든 좌석이 정상 신청되었습니다."
+                    : "신청 후 하원(미등교)한 학생이 없습니다! 모든 신청자가 착석 중입니다.";
+                
+                container.innerHTML = `
+                    <div class="w-full text-center py-6 text-slate-400 text-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-emerald-400 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        ${message}
+                    </div>
+                `;
+            } else {
+                sortedFloors.forEach(floor => {
+                    // 각 층 내부의 좌석 번호들을 오름차순(자연스러운 번호 순서)으로 정렬
+                    const seatsInFloor = floorGroups[floor].sort((a, b) => {
+                        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                    });
+
+                    const floorCard = document.createElement('div');
+                    floorCard.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4';
+                    
+                    let seatsHtml = '';
+                    const borderColor = itemType === 'unauthorized' ? 'border-rose-200 text-rose-800' : 'border-amber-200 text-amber-800';
+                    const iconColor = itemType === 'unauthorized' ? 'text-rose-500' : 'text-amber-500';
+
+                    seatsInFloor.forEach(seat => {
+                        seatsHtml += `
+                            <div class="bg-white border ${borderColor} font-mono font-bold text-sm px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                ${seat}
+                            </div>
+                        `;
+                    });
+
+                    floorCard.innerHTML = `
+                        <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
+                            <h4 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                                <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold">${floor}</span>
+                                <span class="text-xs text-slate-500">인원: ${seatsInFloor.length}명</span>
+                            </h4>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            ${seatsHtml}
+                        </div>
+                    `;
+                    container.appendChild(floorCard);
+                });
+            }
+        }
+
+        function compareSeats() {
+            const appliedText = document.getElementById('appliedInput').value;
+            const currentText = document.getElementById('currentInput').value;
+
+            const appliedList = parseSeats(appliedText);
+            const currentList = parseSeats(currentText);
+
+            if (currentList.length === 0 && appliedList.length === 0) {
+                showModal("입력 확인", "자습 신청 좌석 또는 현재 공부 중인 좌석 목록을 입력해주세요.");
+                return;
+            }
+
+            const appliedSet = new Set(appliedList);
+            const currentSet = new Set(currentList);
+
+            // 1. Unauthorized (현재 공부중 - 신청목록에 없음)
+            const unauthorized = [];
+            const seenUnauthorized = new Set();
+            for (const seat of currentList) {
+                if (!appliedSet.has(seat) && !seenUnauthorized.has(seat)) {
+                    unauthorized.push(seat);
+                    seenUnauthorized.add(seat);
+                }
+            }
+
+            // 2. Absent / Left (신청목록에 있음 - 현재 공부중 목록에 없음)
+            const absent = [];
+            const seenAbsent = new Set();
+            for (const seat of appliedList) {
+                if (!currentSet.has(seat) && !seenAbsent.has(seat)) {
+                    absent.push(seat);
+                    seenAbsent.add(seat);
+                }
+            }
+
+            // Group by floor
+            const unauthorizedGroups = groupSeatsByFloor(unauthorized);
+            const absentGroups = groupSeatsByFloor(absent);
+
+            // Show results panel
+            const resultSection = document.getElementById('resultSection');
+            resultSection.classList.remove('hidden');
+
+            // Render both lists
+            renderFloorGroups('unauthorizedContent', unauthorizedGroups, 'unauthorizedCountBadge', unauthorized.length, 'unauthorized');
+            renderFloorGroups('absentContent', absentGroups, 'absentCountBadge', absent.length, 'absent');
+
+            // Scroll smoothly to results
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function copyResults(containerId, labelName) {
+            const badges = document.querySelectorAll(`#${containerId} div.font-mono`);
+            if (badges.length === 0) {
+                showModal("복사 알림", "복사할 좌석 번호가 없습니다.");
+                return;
+            }
+
+            const textToCopy = Array.from(badges).map(el => el.textContent.trim()).join('\n');
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showModal("복사 완료", `층별 ${labelName} 번호가 클립보드에 복사되었습니다.`);
+            } catch (err) {
+                showModal("복사 실패", "브라우저 보안 설정으로 인해 복사할 수 없습니다.");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function showModal(title, message) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMessage').textContent = message;
+            document.getElementById('customModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('customModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
