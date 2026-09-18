@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>자습 미신청 좌석 분류 프로그램 (계정/클라우드 연동)</title>
+    <title>심야조교의 자습 미신청 및 하원 좌석 분류 프로그램</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts Inter -->
@@ -17,26 +17,20 @@
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
 
     <header class="bg-white border-b border-slate-200 py-4 shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 flex justify-between items-center">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
             <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                자습 미신청 좌석 대조 프로그램
+                심야조교의 자습 미신청 및 하원 좌석 분류 프로그램
             </h1>
             
-            <!-- User Profile & Sync Tab Area -->
-            <div class="flex items-center gap-3">
-                <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span id="userUidDisplay" class="font-mono text-slate-600 truncate max-w-[120px]">로그인 중...</span>
-                </div>
-                <button onclick="toggleCloudSave()" id="cloudSyncBtn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs px-3.5 py-2 rounded-xl transition border border-indigo-100 flex items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    내 입력값 클라우드 저장
-                </button>
+            <!-- Real-time Clock Badge -->
+            <div class="flex items-center gap-2 bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono text-slate-700 shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span id="realtimeClock">로딩 중...</span>
             </div>
         </div>
     </header>
@@ -48,10 +42,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                중복 입력 및 오름차순 정렬 안내
+                자동 중복 제거 및 월별 기록 관리 안내
             </h2>
             <p class="text-xs text-blue-800 leading-relaxed">
-                좌석 번호가 중복으로 입력된 경우, 프로그램 내부에서 <strong>자동으로 중복을 제거(1개만 인식)</strong>하여 오탐지나 중복 카운트를 방지합니다. 또한 대조 실행 시 각 층별 번호가 <strong>오름차순(작은 번호에서 큰 번호 순)</strong>으로 자동 정렬됩니다.
+                중복 좌석번호는 자동 제거되며 오름차순으로 정렬됩니다. [심야자습 신청기록]에는 <strong>신청 좌석, 실제 공부 중인 좌석, 미신청 공부자, 신청 후 하원자</strong> 4가지 항목이 모두 기록되며, 매월 1일이 되면 이전 기록은 자동 초기화됩니다.
             </p>
         </div>
 
@@ -84,7 +78,6 @@
             </div>
         </div>
 
-        <!-- Action Controls -->
         <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
             <button onclick="compareSeats()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,10 +88,27 @@
             <button onclick="loadSampleData()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium px-5 py-3 rounded-xl transition-all text-sm">
                 샘플 데이터 불러오기
             </button>
+            <button onclick="openHistoryModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-5 py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                심야자습 신청기록
+            </button>
         </div>
 
         <!-- Results Panel -->
         <div id="resultSection" class="space-y-6 hidden">
+            <!-- Last execution timestamp info card -->
+            <div id="executionTimestampCard" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 px-4 text-xs text-indigo-800 flex items-center justify-between">
+                <span class="flex items-center gap-1.5 font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    대조 실행 기록 시각: <strong id="timestampValue" class="font-mono"></strong>
+                </span>
+                <span class="text-indigo-600 bg-white px-2.5 py-1 rounded-lg border border-indigo-100 font-semibold shadow-xs">기록 저장됨</span>
+            </div>
+
             <!-- Unauthorized Section (미신청 공부자) -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-2">
@@ -148,8 +158,30 @@
     </main>
 
     <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200 bg-white">
-        자습 미신청 및 하원 좌석 분류 프로그램 &copy; 2026 (Cloud & Sort Enabled)
+        자습 미신청 및 하원 좌석 분류 프로그램 &copy; 2026
     </footer>
+
+    <!-- History Log Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl border border-slate-100 flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    심야자습 신청 및 대조 기록 (신청 좌석 / 실제 공부 중 / 미신청 공부자 / 신청 후 하원자)
+                </h3>
+                <button onclick="closeHistoryModal()" class="text-slate-400 hover:text-slate-600 text-sm font-bold px-2 py-1">✕ 닫기</button>
+            </div>
+            <div id="historyListContainer" class="overflow-y-auto space-y-4 flex-grow pr-1">
+                <!-- Dynamically populated history logs -->
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                <span class="text-slate-500">※ 매월 1일 새로운 달이 시작되면 이전 기록은 자동 초기화됩니다.</span>
+                <button onclick="clearHistoryLogs()" class="text-rose-500 hover:text-rose-700 font-medium">기록 전체 삭제</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Custom Notification Box -->
     <div id="customModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
@@ -160,101 +192,44 @@
         </div>
     </div>
 
-    <!-- Firebase & Cloud Sync Logic -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        let app, db, auth;
-        let currentUser = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'seat-checker-app';
-
-        async function initFirebase() {
-            try {
-                if (typeof __firebase_config !== 'undefined') {
-                    const firebaseConfig = JSON.parse(__firebase_config);
-                    app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-
-                    onAuthStateChanged(auth, (user) => {
-                        if (user) {
-                            currentUser = user;
-                            document.getElementById('userUidDisplay').textContent = user.uid.substring(0, 8) + '...';
-                            document.getElementById('userProfileBadge').classList.remove('hidden');
-                            document.getElementById('userProfileBadge').classList.add('flex');
-                            loadCloudData();
-                        }
-                    });
-                }
-            } catch (e) {
-                console.warn("Cloud connection fallback mode active:", e);
-            }
-        }
-
-        window.toggleCloudSave = async function() {
-            if (!db || !currentUser) {
-                showModal("클라우드 알림", "현재 오프라인 모드이거나 인증이 진행 중입니다. 잠시 후 다시 시도해주세요.");
-                return;
-            }
-
-            const appliedText = document.getElementById('appliedInput').value;
-            const currentText = document.getElementById('currentInput').value;
-
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'seatData', 'latest');
-                await setDoc(docRef, {
-                    appliedText: appliedText,
-                    currentText: currentText,
-                    updatedAt: new Date().toISOString()
-                });
-                showModal("저장 완료", "현재 입력하신 좌석 목록이 클라우드 계정에 성공적으로 동기화되었습니다.");
-            } catch (err) {
-                console.error(err);
-                showModal("저장 실패", "클라우드 저장 중 오류가 발생했습니다.");
-            }
-        }
-
-        async function loadCloudData() {
-            if (!db || !currentUser) return;
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'seatData', 'latest');
-                const snap = await getDoc(docRef);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    if (data.appliedText) {
-                        document.getElementById('appliedInput').value = data.appliedText;
-                        updateCount('appliedInput', 'appliedCount');
-                    }
-                    if (data.currentText) {
-                        document.getElementById('currentInput').value = data.currentText;
-                        updateCount('currentInput', 'currentCount');
-                    }
-                    if (data.appliedText || data.currentText) {
-                        compareSeats();
-                    }
-                }
-            } catch (err) {
-                console.warn("Could not load cloud data:", err);
-            }
-        }
-
-        initFirebase();
-    </script>
-
     <script>
+        // Check and perform monthly auto-reset of logs
+        function checkMonthlyReset() {
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const storedMonthKey = localStorage.getItem('seat_log_active_month');
+
+            if (storedMonthKey !== currentMonthKey) {
+                // New month detected: clear previous logs
+                localStorage.removeItem('seat_comparison_logs');
+                localStorage.setItem('seat_log_active_month', currentMonthKey);
+            }
+        }
+        checkMonthlyReset();
+
+        // Real-time clock update (every second)
+        function updateRealtimeClock() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            const timeString = `${year}년 ${month}월 ${day}일 ${hours}:${minutes}:${seconds}`;
+            const clockEl = document.getElementById('realtimeClock');
+            if (clockEl) {
+                clockEl.textContent = timeString;
+            }
+        }
+        setInterval(updateRealtimeClock, 1000);
+        updateRealtimeClock();
+
         // Real-time counter updates
         document.getElementById('appliedInput').addEventListener('input', () => updateCount('appliedInput', 'appliedCount'));
         document.getElementById('currentInput').addEventListener('input', () => updateCount('currentInput', 'currentCount'));
 
-        // 좌석 파싱 및 중복 자동 제거 함수 (Set을 통해 중복 입력 건 방지)
         function parseSeats(text) {
             if (!text) return [];
             const rawList = text
@@ -262,8 +237,11 @@
                 .map(s => s.trim())
                 .filter(s => s.length > 0);
             
-            // 중복 제거 후 반환
-            return Array.from(new Set(rawList));
+            // Deduplicate automatically and sort in ascending order
+            const uniqueSorted = Array.from(new Set(rawList)).sort((a, b) => {
+                return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+            });
+            return uniqueSorted;
         }
 
         function updateCount(inputId, countId) {
@@ -283,9 +261,9 @@
 
         function loadSampleData() {
             document.getElementById('appliedInput').value = "2-020\n2-031\n2-099\n2-168\n5-001\n6-116\n8-107";
-            document.getElementById('currentInput').value = "2-020\n2-031\n3-045\n5-001\n6-116\n7-088\n8-107\n3-102\n5-015\n2-020"; // 중복 포함 샘플
+            document.getElementById('currentInput').value = "2-020\n2-031\n3-045\n5-001\n6-116\n7-088\n8-107\n3-102\n5-015\n2-020";
             updateCount('appliedInput', 'appliedCount');
-            updateCount('currentInput', 'currentCount');
+            updateCount('currentCount', 'currentCount');
             compareSeats();
         }
 
@@ -317,7 +295,6 @@
             badge.textContent = `${totalCount}명 발견`;
             container.innerHTML = '';
 
-            // 층 이름 오름차순 정렬 (예: 2층, 3층, 5층...)
             const sortedFloors = Object.keys(floorGroups).sort((a, b) => {
                 const numA = parseInt(a) || 0;
                 const numB = parseInt(b) || 0;
@@ -339,7 +316,7 @@
                 `;
             } else {
                 sortedFloors.forEach(floor => {
-                    // 각 층 내부의 좌석 번호들을 오름차순(자연스러운 번호 순서)으로 정렬
+                    // Ascending sort within each floor
                     const seatsInFloor = floorGroups[floor].sort((a, b) => {
                         return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
                     });
@@ -402,6 +379,8 @@
                     seenUnauthorized.add(seat);
                 }
             }
+            // Sort ascending
+            unauthorized.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             // 2. Absent / Left (신청목록에 있음 - 현재 공부중 목록에 없음)
             const absent = [];
@@ -412,10 +391,41 @@
                     seenAbsent.add(seat);
                 }
             }
+            // Sort ascending
+            absent.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             // Group by floor
             const unauthorizedGroups = groupSeatsByFloor(unauthorized);
             const absentGroups = groupSeatsByFloor(absent);
+
+            // Record execution timestamp
+            const now = new Date();
+            const timestampStr = `${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월 ${String(now.getDate()).padStart(2, '0')}일 ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            
+            document.getElementById('timestampValue').textContent = timestampStr;
+
+            // Save full 4-category record to session history log array
+            const sessionRecord = {
+                timestamp: timestampStr,
+                appliedSeats: appliedList,
+                currentSeats: currentList,
+                unauthorizedSeats: unauthorized,
+                absentSeats: absent,
+                unauthorizedCount: unauthorized.length,
+                absentCount: absent.length,
+                unauthorizedGroups: unauthorizedGroups,
+                absentGroups: absentGroups
+            };
+
+            try {
+                checkMonthlyReset();
+                let existingLogs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
+                existingLogs.unshift(sessionRecord); // Add latest to the beginning
+                if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50); // Keep last 50 records
+                localStorage.setItem('seat_comparison_logs', JSON.stringify(existingLogs));
+            } catch (e) {
+                console.warn("Could not save session logs to localStorage:", e);
+            }
 
             // Show results panel
             const resultSection = document.getElementById('resultSection');
@@ -427,6 +437,82 @@
 
             // Scroll smoothly to results
             resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function openHistoryModal() {
+            checkMonthlyReset();
+            const container = document.getElementById('historyListContainer');
+            container.innerHTML = '';
+
+            let logs = [];
+            try {
+                logs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
+            } catch (e) {
+                logs = [];
+            }
+
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 text-xs">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        이번 달 저장된 심야자습 신청 및 대조 기록이 없습니다.<br>좌석 대조를 실행하면 기록이 누적됩니다.
+                    </div>
+                `;
+            } else {
+                logs.forEach((log) => {
+                    const logCard = document.createElement('div');
+                    logCard.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5';
+                    
+                    const appliedStr = log.appliedSeats && log.appliedSeats.length > 0 ? log.appliedSeats.join(', ') : '없음';
+                    const currentStr = log.currentSeats && log.currentSeats.length > 0 ? log.currentSeats.join(', ') : '없음';
+                    const unauthStr = log.unauthorizedSeats && log.unauthorizedSeats.length > 0 ? log.unauthorizedSeats.join(', ') : '없음';
+                    const absentStr = log.absentSeats && log.absentSeats.length > 0 ? log.absentSeats.join(', ') : '없음';
+
+                    logCard.innerHTML = `
+                        <div class="flex justify-between items-center text-xs pb-2 border-b border-slate-200">
+                            <span class="font-bold text-indigo-600 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                기록 일시: ${log.timestamp}
+                            </span>
+                            <span class="text-slate-500 text-[11px]">미신청 ${log.unauthorizedCount}명 / 하원 ${log.absentCount}명</span>
+                        </div>
+                        <div class="text-xs space-y-1.5 font-mono">
+                            <div class="bg-white p-2 rounded-lg border border-slate-200">
+                                <strong class="text-emerald-700 font-sans block mb-0.5">1. 심야자습 신청 좌석 (${log.appliedSeats ? log.appliedSeats.length : 0}개):</strong>
+                                <span class="text-slate-700 text-[11px]">${appliedStr}</span>
+                            </div>
+                            <div class="bg-white p-2 rounded-lg border border-slate-200">
+                                <strong class="text-indigo-700 font-sans block mb-0.5">2. 실제 공부 중인 좌석 (${log.currentSeats ? log.currentSeats.length : 0}개):</strong>
+                                <span class="text-slate-700 text-[11px]">${currentStr}</span>
+                            </div>
+                            <div class="bg-rose-50 p-2 rounded-lg border border-rose-100">
+                                <strong class="text-rose-700 font-sans block mb-0.5">3. 미신청 공부자 (${log.unauthorizedCount}명):</strong>
+                                <span class="text-rose-800 text-[11px]">${unauthStr}</span>
+                            </div>
+                            <div class="bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                <strong class="text-amber-700 font-sans block mb-0.5">4. 신청 후 하원자 (${log.absentCount}명):</strong>
+                                <span class="text-amber-800 text-[11px]">${absentStr}</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(logCard);
+                });
+            }
+
+            document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('historyModal').classList.add('hidden');
+        }
+
+        function clearHistoryLogs() {
+            localStorage.removeItem('seat_comparison_logs');
+            openHistoryModal();
         }
 
         function copyResults(containerId, labelName) {
