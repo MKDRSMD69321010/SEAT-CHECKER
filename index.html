@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>심야조교의 자습 미신청 및 하원 좌석 분류 프로그램</title>
+    <title>자습 미신청 및 하원 좌석 분류 프로그램 (월간 빈도 표시)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts Inter -->
@@ -22,7 +22,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
-                심야조교의 자습 미신청 및 하원 좌석 분류 프로그램
+                자습 미신청 및 하원 좌석 분류 프로그램
             </h1>
             
             <!-- Real-time Clock Badge -->
@@ -42,10 +42,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                자동 중복 제거 및 월별 기록 관리 안내
+                월간 상습 누적 빈도 및 월별 기록 관리 안내
             </h2>
             <p class="text-xs text-blue-800 leading-relaxed">
-                중복 좌석번호는 자동 제거되며 오름차순으로 정렬됩니다. [심야자습 신청기록]에는 <strong>신청 좌석, 실제 공부 중인 좌석, 미신청 공부자, 신청 후 하원자</strong> 4가지 항목이 모두 기록되며, 매월 1일이 되면 이전 기록은 자동 초기화됩니다.
+                좌석번호 중복은 자동 제거되며 오름차순 정렬됩니다. 대조 결과에서 각 좌석 번호 상단에는 <strong>이번 달 동안 미신청/하원에 몇 번 적발(누적)되었는지</strong> 작은 배지 형태로 함께 표시되어 상습 누락자를 파악할 수 있으며, 기록은 매월 1일에 초기화됩니다.
             </p>
         </div>
 
@@ -117,7 +117,7 @@
                             <span class="w-3 h-3 rounded-full bg-rose-500"></span>
                             층별 자습 미신청 공부자 명단
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">실제 공부 중이나 신청 내역이 없는 좌석이 층별 및 오름차순으로 정렬되어 있습니다.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">실제 공부 중이나 신청 내역이 없는 좌석이며, 상단 숫자는 이번 달 누적 적발 횟수입니다.</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span id="unauthorizedCountBadge" class="bg-rose-50 text-rose-700 font-bold text-sm px-3 py-1 rounded-lg border border-rose-100">0명 발견</span>
@@ -140,7 +140,7 @@
                             <span class="w-3 h-3 rounded-full bg-amber-500"></span>
                             층별 자습 신청 후 하원(미등교)자 명단
                         </h3>
-                        <p class="text-xs text-slate-500 mt-0.5">자습은 신청했으나 실제 공부 중인 목록에 없는 좌석이 층별 및 오름차순으로 정렬되어 있습니다.</p>
+                        <p class="text-xs text-slate-500 mt-0.5">자습은 신청했으나 실제 공부 중인 목록에 없는 좌석이며, 상단 숫자는 이번 달 누적 적발 횟수입니다.</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span id="absentCountBadge" class="bg-amber-50 text-amber-700 font-bold text-sm px-3 py-1 rounded-lg border border-amber-100">0명 발견</span>
@@ -200,7 +200,6 @@
             const storedMonthKey = localStorage.getItem('seat_log_active_month');
 
             if (storedMonthKey !== currentMonthKey) {
-                // New month detected: clear previous logs
                 localStorage.removeItem('seat_comparison_logs');
                 localStorage.setItem('seat_log_active_month', currentMonthKey);
             }
@@ -288,12 +287,48 @@
             return floorGroups;
         }
 
+        // Calculate monthly frequency for each seat from history logs
+        function calculateMonthlyFrequencies() {
+            let logs = [];
+            try {
+                logs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
+            } catch (e) {
+                logs = [];
+            }
+
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            const unauthorizedFreq = {};
+            const absentFreq = {};
+
+            logs.forEach(log => {
+                if (log.timestamp && log.timestamp.startsWith(`${now.getFullYear()}년 ${String(now.getMonth() + 1).padStart(2, '0')}월`)) {
+                    if (log.unauthorizedSeats) {
+                        log.unauthorizedSeats.forEach(seat => {
+                            unauthorizedFreq[seat] = (unauthorizedFreq[seat] || 0) + 1;
+                        });
+                    }
+                    if (log.absentSeats) {
+                        log.absentSeats.forEach(seat => {
+                            absentFreq[seat] = (absentFreq[seat] || 0) + 1;
+                        });
+                    }
+                }
+            });
+
+            return { unauthorizedFreq, absentFreq };
+        }
+
         function renderFloorGroups(containerId, floorGroups, badgeId, totalCount, itemType) {
             const container = document.getElementById(containerId);
             const badge = document.getElementById(badgeId);
             
             badge.textContent = `${totalCount}명 발견`;
             container.innerHTML = '';
+
+            const frequencies = calculateMonthlyFrequencies();
+            const freqMap = itemType === 'unauthorized' ? frequencies.unauthorizedFreq : frequencies.absentFreq;
 
             const sortedFloors = Object.keys(floorGroups).sort((a, b) => {
                 const numA = parseInt(a) || 0;
@@ -316,7 +351,6 @@
                 `;
             } else {
                 sortedFloors.forEach(floor => {
-                    // Ascending sort within each floor
                     const seatsInFloor = floorGroups[floor].sort((a, b) => {
                         return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
                     });
@@ -327,10 +361,15 @@
                     let seatsHtml = '';
                     const borderColor = itemType === 'unauthorized' ? 'border-rose-200 text-rose-800' : 'border-amber-200 text-amber-800';
                     const iconColor = itemType === 'unauthorized' ? 'text-rose-500' : 'text-amber-500';
+                    const badgeBg = itemType === 'unauthorized' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-amber-100 text-amber-700 border-amber-200';
 
                     seatsInFloor.forEach(seat => {
+                        const freqCount = freqMap[seat] || 1;
                         seatsHtml += `
-                            <div class="bg-white border ${borderColor} font-mono font-bold text-sm px-3.5 py-2 rounded-xl shadow-sm flex items-center gap-1.5">
+                            <div class="bg-white border ${borderColor} font-mono font-bold text-sm px-3.5 pt-4 pb-2 rounded-xl shadow-sm flex items-center gap-1.5 relative mt-2">
+                                <span class="absolute -top-2.5 left-3 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${badgeBg} shadow-2xs" title="이번 달 총 ${freqCount}회 적발됨">
+                                    이번 달 ${freqCount}회
+                                </span>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
@@ -346,7 +385,7 @@
                                 <span class="text-xs text-slate-500">인원: ${seatsInFloor.length}명</span>
                             </h4>
                         </div>
-                        <div class="flex flex-wrap gap-2">
+                        <div class="flex flex-wrap gap-2.5 pt-1">
                             ${seatsHtml}
                         </div>
                     `;
@@ -379,7 +418,6 @@
                     seenUnauthorized.add(seat);
                 }
             }
-            // Sort ascending
             unauthorized.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
             // 2. Absent / Left (신청목록에 있음 - 현재 공부중 목록에 없음)
@@ -391,10 +429,8 @@
                     seenAbsent.add(seat);
                 }
             }
-            // Sort ascending
             absent.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-            // Group by floor
             const unauthorizedGroups = groupSeatsByFloor(unauthorized);
             const absentGroups = groupSeatsByFloor(absent);
 
@@ -404,7 +440,6 @@
             
             document.getElementById('timestampValue').textContent = timestampStr;
 
-            // Save full 4-category record to session history log array
             const sessionRecord = {
                 timestamp: timestampStr,
                 appliedSeats: appliedList,
@@ -420,22 +455,19 @@
             try {
                 checkMonthlyReset();
                 let existingLogs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
-                existingLogs.unshift(sessionRecord); // Add latest to the beginning
-                if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50); // Keep last 50 records
+                existingLogs.unshift(sessionRecord);
+                if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50);
                 localStorage.setItem('seat_comparison_logs', JSON.stringify(existingLogs));
             } catch (e) {
                 console.warn("Could not save session logs to localStorage:", e);
             }
 
-            // Show results panel
             const resultSection = document.getElementById('resultSection');
             resultSection.classList.remove('hidden');
 
-            // Render both lists
             renderFloorGroups('unauthorizedContent', unauthorizedGroups, 'unauthorizedCountBadge', unauthorized.length, 'unauthorized');
             renderFloorGroups('absentContent', absentGroups, 'absentCountBadge', absent.length, 'absent');
 
-            // Scroll smoothly to results
             resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
@@ -522,7 +554,12 @@
                 return;
             }
 
-            const textToCopy = Array.from(badges).map(el => el.textContent.trim()).join('\n');
+            const textToCopy = Array.from(badges).map(el => {
+                const clone = el.cloneNode(true);
+                const span = clone.querySelector('span');
+                if (span) span.remove();
+                return clone.textContent.trim();
+            }).join('\n');
             
             const textArea = document.createElement("textarea");
             textArea.value = textToCopy;
