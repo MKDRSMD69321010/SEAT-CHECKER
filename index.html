@@ -148,6 +148,10 @@
         </div>
     </main>
 
+    <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200 bg-white">
+        자습 미신청 및 하원 좌석 분류 프로그램 &copy; 2026
+    </footer>
+
     <!-- History Log Modal -->
     <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-xl border border-slate-100 flex flex-col max-h-[85vh]">
@@ -183,54 +187,26 @@
     </div>
 
     <script>
-        // ★★★ 여기에 구글 웹 앱 URL을 붙여넣으세요 ★★★
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx4ui9972aKoF9vJ6eeUkOm5lQcpolnx9sVFvn4te6a0t59P60iWevrgnukLa0fFOECPg/exec";
+        // ★★★ 여기에 새로 발급받으신 웹 앱 URL을 붙여넣으세요 ★★★
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4eSYGKLoYjo8WjcfIGzy_InaTrd9dbMoK_vLTdW28xCCOlgGTSox08memIwoSj7T7hw/exec";
 
-        // 기기 고유 이름 자동 생성
+        // 기기 고유 이름 자동 생성 및 관리
         function getDeviceName() {
             let name = localStorage.getItem('seat_checker_device_name');
             if (!name) {
-                name = "PC_" + Math.floor(Math.random() * 10000);
+                name = "PC_" + Math.floor(Math.random() * 10000); // 예: PC_4192
                 localStorage.setItem('seat_checker_device_name', name);
             }
             return name;
         }
         const DEVICE_NAME = getDeviceName();
 
-        // 스프레드시트 기록용 세로 포맷 문자열 생성
-        function formatForSheet(groups) {
-            if (!groups || Object.keys(groups).length === 0) return "없음";
-            return Object.keys(groups)
-                .sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0))
-                .map(floor => `[${floor}] ➔ ${groups[floor].join(', ')}`)
-                .join('\n'); // 층별로 줄바꿈을 하여 세로로 늘어나게 함
-        }
-
-        // 스프레드시트 세로 문자열을 다시 프로그램 객체로 복원
-        function parseFromSheet(text) {
-            const groups = {};
-            if (!text || text === "없음") return groups;
-            
-            // 기존 JSON 형식과의 호환성 유지
-            if (text.trim().startsWith('{')) {
-                try { return JSON.parse(text); } catch(e) {}
-            }
-            
-            text.split('\n').forEach(line => {
-                const parts = line.split('➔');
-                if (parts.length >= 2) {
-                    const floor = parts[0].replace(/[\[\]]/g, '').trim();
-                    const seats = parts[1].split(',').map(s => s.trim()).filter(s => s);
-                    if (floor && seats.length > 0) groups[floor] = seats;
-                }
-            });
-            return groups;
-        }
-
+        // Check and perform monthly auto-reset of local logs
         function checkMonthlyReset() {
             const now = new Date();
             const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             const storedMonthKey = localStorage.getItem('seat_log_active_month');
+
             if (storedMonthKey !== currentMonthKey) {
                 localStorage.setItem('seat_log_active_month', currentMonthKey);
                 localStorage.removeItem('seat_checker_history_logs');
@@ -252,8 +228,11 @@
 
         function updateRealtimeClock() {
             const now = new Date();
+            const timeString = formatDateTimeWithWeekday(now);
             const clockEl = document.getElementById('realtimeClock');
-            if (clockEl) clockEl.textContent = formatDateTimeWithWeekday(now);
+            if (clockEl) {
+                clockEl.textContent = timeString;
+            }
         }
         setInterval(updateRealtimeClock, 1000);
         updateRealtimeClock();
@@ -277,12 +256,17 @@
 
         function updateCount(inputId, countId) {
             const text = document.getElementById(inputId).value;
-            document.getElementById(countId).textContent = parseSeats(text).length;
+            const seats = parseSeats(text);
+            document.getElementById(countId).textContent = seats.length;
         }
 
         function clearInput(inputId) {
             document.getElementById(inputId).value = '';
-            document.getElementById(inputId === 'appliedInput' ? 'appliedCount' : 'currentCount').textContent = '0';
+            if (inputId === 'appliedInput') {
+                document.getElementById('appliedCount').textContent = '0';
+            } else {
+                document.getElementById('currentCount').textContent = '0';
+            }
         }
 
         window.loadSampleData = function() {
@@ -441,16 +425,16 @@
                 logs.unshift(sessionRecord);
                 saveStoredLogs(logs);
 
-                // 구글 스프레드시트로 전송 (보기 좋게 텍스트 포맷팅)
+                // 구글 스프레드시트로 전송 (기기 이름 포함)
                 try {
                     const sheetPayload = {
                         action: "save",
                         deviceName: DEVICE_NAME,
                         timestamp: sessionRecord.timestamp,
-                        applied: formatForSheet(sessionRecord.appliedGroups),
-                        active: formatForSheet(sessionRecord.currentGroups),
-                        unreg: formatForSheet(sessionRecord.unauthorizedGroups),
-                        left: formatForSheet(sessionRecord.absentGroups)
+                        applied: JSON.stringify(sessionRecord.appliedGroups),
+                        active: JSON.stringify(sessionRecord.currentGroups),
+                        unreg: JSON.stringify(sessionRecord.unauthorizedGroups),
+                        left: JSON.stringify(sessionRecord.absentGroups)
                     };
                     fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(sheetPayload) });
                 } catch (e) { console.error("스프레드시트 전송 실패:", e); }
@@ -547,11 +531,10 @@
                             const dateMatch = cloudRec.timestamp.match(/(\d{4})년 (\d{2})월 (\d{2})일/);
                             let dateOnly = dateMatch ? `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}` : "";
 
-                            // 변경된 세로 텍스트 포맷을 파싱
-                            const appliedGroups = parseFromSheet(cloudRec.applied);
-                            const currentGroups = parseFromSheet(cloudRec.active);
-                            const unauthGroups = parseFromSheet(cloudRec.unreg);
-                            const absentGroups = parseFromSheet(cloudRec.left);
+                            const appliedGroups = JSON.parse(cloudRec.applied || "{}");
+                            const currentGroups = JSON.parse(cloudRec.active || "{}");
+                            const unauthGroups = JSON.parse(cloudRec.unreg || "{}");
+                            const absentGroups = JSON.parse(cloudRec.left || "{}");
 
                             localLogs.push({
                                 id: 'log_cloud_' + Date.now() + Math.random(),
