@@ -45,7 +45,7 @@
                 월간 상습 누적 빈도 및 월별 기록 관리 안내
             </h2>
             <p class="text-xs text-blue-800 leading-relaxed">
-                좌석번호 중복은 자동 제거되며 오름차순 정렬됩니다. 대조 결과에서 각 좌석 번호 상단에는 <strong>이번 달 동안 미신청/하원에 몇 번 적발(누적)되었는지</strong> 작은 배지 형태로 함께 표시되어 상습 누락자를 파악할 수 있으며, 기록은 매월 1일에 초기화됩니다.
+                좌석번호 중복은 자동 제거되며 오름차순 정렬됩니다. 대조 결과에서 각 좌석 번호 상단에는 <strong>이번 달 동안 미신청/하원에 몇 번 적발(누적)되었는지</strong> 작은 배지 형태로 함께 표시되어 상습 누락자를 파악할 수 있으며, 기록은 매월 1일에 초기화됩니다. 동일한 일자에 동일한 데이터로 대조를 실행할 경우 최초 시도만 기록됩니다.
             </p>
         </div>
 
@@ -251,12 +251,9 @@
         }
 
         // Validate seat number format: e.g. 2-020, 10-105, or 2-1-1 (Floor-Number format where numbers are present)
-        // Standard expected format: ^\d+-\d+$ or general floor-number format like ^\d+-\d+(-\d+)*$
+        // Standard expected format: ^\d+-\d+(-\d+)*$ where each part is numeric (001-999 or general digits)
         function validateSeatFormats(seatList) {
-            // Regex for valid seat format: Digits followed by hyphen and 1 to 3 digits (e.g. 2-020, 2-99, 10-501)
-            // Or allows sub-sections like 2-1-1 if needed, but per requirement: "숫자-(001부터999까지 숫자 형식)" or similar standard
-            // Let's check pattern: ^\d+-\d{1,3}$ (e.g. 2-020, 5-01) or general ^\d+-[0-9\-]+$
-            const seatPattern = /^\d+-\d{1,3}$/;
+            const seatPattern = /^\d+-\d+(-\d+)*$/;
             for (const seat of seatList) {
                 if (!seatPattern.test(seat)) {
                     return seat; // Return the first invalid seat found
@@ -508,7 +505,9 @@
                     return sameApplied && sameCurrent;
                 });
 
-                if (!isDuplicate) {
+                if (isDuplicate) {
+                    showModal("기록 중복 안내", "동일한 값이 같은 일자에 기록되어 있습니다.");
+                } else {
                     existingLogs.unshift(sessionRecord);
                     if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50);
                     localStorage.setItem('seat_comparison_logs', JSON.stringify(existingLogs));
