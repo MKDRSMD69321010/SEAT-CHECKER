@@ -93,7 +93,6 @@
         </div>
 
         <div id="resultSection" class="space-y-6 hidden">
-            <!-- Last execution timestamp info card -->
             <div id="executionTimestampCard" class="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 px-4 text-xs text-indigo-800 flex items-center justify-between">
                 <span class="flex items-center gap-1.5 font-medium">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -182,17 +181,10 @@
 
     <script>
         // ★★★ 여기에 새로 발급받으신 웹 앱 URL을 붙여넣으세요 ★★★
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySJuhybK80fd1LGJzOUgQvdfxqIme7QF6p6k5R-NsX2YeGTvjDPWBrqYUL-jwzVcRVww/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybYQ4eZnDoG1A580op8x3Sndxky8Q62I-IQdQkWmzScz0YbVM_xfkoOkxwTriOR-Cnfw/exec";
 
-        function getDeviceName() {
-            let name = localStorage.getItem('seat_checker_device_name');
-            if (!name) {
-                name = "PC_" + Math.floor(Math.random() * 10000);
-                localStorage.setItem('seat_checker_device_name', name);
-            }
-            return name;
-        }
-        const DEVICE_NAME = getDeviceName();
+        // ★★★ 기기별 이름 설정 ("본관", "별관", "호스트" 중 하나로 지정) ★★★
+        const DEVICE_NAME = "본관"; 
 
         function checkMonthlyReset() {
             const now = new Date();
@@ -302,7 +294,6 @@
             return { unauthorizedFreq, absentFreq };
         }
 
-        // 디자인 버그 완벽 수정 (글자 겹침 방지 적용)
         function renderFloorGroups(containerId, floorGroups, badgeId, totalCount, itemType) {
             const container = document.getElementById(containerId);
             const badge = document.getElementById(badgeId);
@@ -328,7 +319,6 @@
 
                     seatsInFloor.forEach(seat => {
                         const freqCount = freqMap[seat] || 1;
-                        // CSS 겹침 방지를 위해 absolute 제거 후 flex-col 구조로 위아래 깔끔하게 나열
                         seatsHtml += `
                             <div class="bg-white border ${borderColor} rounded-xl shadow-sm flex flex-col items-center py-2 px-3 mt-2 w-auto">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${badgeBg} mb-1.5 whitespace-nowrap tracking-tight w-full text-center">이번 달 ${freqCount}회</span>
