@@ -183,16 +183,8 @@
         // ★★★ 여기에 새로 발급받으신 웹 앱 URL을 붙여넣으세요 ★★★
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybYQ4eZnDoG1A580op8x3Sndxky8Q62I-IQdQkWmzScz0YbVM_xfkoOkxwTriOR-Cnfw/exec";
 
-        // 기기 고유 이름 자동 생성 (PC_숫자 형태로 자동 부여)
-function getDeviceName() {
-    let name = localStorage.getItem('seat_checker_device_name');
-    if (!name) {
-        name = "PC_" + Math.floor(Math.random() * 10000);
-        localStorage.setItem('seat_checker_device_name', name);
-    }
-    return name;
-}
-const DEVICE_NAME = getDeviceName(); 
+// ★★★ 기기별 이름 설정 ("본관", "별관", "테스터" 중 하나로 지정) ★★★
+const DEVICE_NAME = "테스터"; 
 
         function checkMonthlyReset() {
             const now = new Date();
