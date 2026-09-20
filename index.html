@@ -9,9 +9,7 @@
     <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
@@ -148,10 +146,6 @@
         </div>
     </main>
 
-    <footer class="text-center py-6 text-xs text-slate-400 border-t border-slate-200 bg-white">
-        자습 미신청 및 하원 좌석 분류 프로그램 &copy; 2026
-    </footer>
-
     <!-- History Log Modal -->
     <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-2xl p-6 max-w-3xl w-full mx-4 shadow-xl border border-slate-100 flex flex-col max-h-[85vh]">
@@ -188,25 +182,22 @@
 
     <script>
         // ★★★ 여기에 새로 발급받으신 웹 앱 URL을 붙여넣으세요 ★★★
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz4eSYGKLoYjo8WjcfIGzy_InaTrd9dbMoK_vLTdW28xCCOlgGTSox08memIwoSj7T7hw/exec";
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbySJuhybK80fd1LGJzOUgQvdfxqIme7QF6p6k5R-NsX2YeGTvjDPWBrqYUL-jwzVcRVww/exec";
 
-        // 기기 고유 이름 자동 생성 및 관리
         function getDeviceName() {
             let name = localStorage.getItem('seat_checker_device_name');
             if (!name) {
-                name = "PC_" + Math.floor(Math.random() * 10000); // 예: PC_4192
+                name = "PC_" + Math.floor(Math.random() * 10000);
                 localStorage.setItem('seat_checker_device_name', name);
             }
             return name;
         }
         const DEVICE_NAME = getDeviceName();
 
-        // Check and perform monthly auto-reset of local logs
         function checkMonthlyReset() {
             const now = new Date();
             const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
             const storedMonthKey = localStorage.getItem('seat_log_active_month');
-
             if (storedMonthKey !== currentMonthKey) {
                 localStorage.setItem('seat_log_active_month', currentMonthKey);
                 localStorage.removeItem('seat_checker_history_logs');
@@ -228,11 +219,8 @@
 
         function updateRealtimeClock() {
             const now = new Date();
-            const timeString = formatDateTimeWithWeekday(now);
             const clockEl = document.getElementById('realtimeClock');
-            if (clockEl) {
-                clockEl.textContent = timeString;
-            }
+            if (clockEl) clockEl.textContent = formatDateTimeWithWeekday(now);
         }
         setInterval(updateRealtimeClock, 1000);
         updateRealtimeClock();
@@ -256,17 +244,12 @@
 
         function updateCount(inputId, countId) {
             const text = document.getElementById(inputId).value;
-            const seats = parseSeats(text);
-            document.getElementById(countId).textContent = seats.length;
+            document.getElementById(countId).textContent = parseSeats(text).length;
         }
 
         function clearInput(inputId) {
             document.getElementById(inputId).value = '';
-            if (inputId === 'appliedInput') {
-                document.getElementById('appliedCount').textContent = '0';
-            } else {
-                document.getElementById('currentCount').textContent = '0';
-            }
+            document.getElementById(inputId === 'appliedInput' ? 'appliedCount' : 'currentCount').textContent = '0';
         }
 
         window.loadSampleData = function() {
@@ -319,6 +302,7 @@
             return { unauthorizedFreq, absentFreq };
         }
 
+        // 디자인 버그 완벽 수정 (글자 겹침 방지 적용)
         function renderFloorGroups(containerId, floorGroups, badgeId, totalCount, itemType) {
             const container = document.getElementById(containerId);
             const badge = document.getElementById(badgeId);
@@ -340,14 +324,20 @@
                     
                     let seatsHtml = '';
                     const borderColor = itemType === 'unauthorized' ? 'border-rose-200 text-rose-800' : 'border-amber-200 text-amber-800';
-                    const badgeBg = itemType === 'unauthorized' ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-amber-100 text-amber-700 border-amber-200';
+                    const badgeBg = itemType === 'unauthorized' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
 
                     seatsInFloor.forEach(seat => {
                         const freqCount = freqMap[seat] || 1;
+                        // CSS 겹침 방지를 위해 absolute 제거 후 flex-col 구조로 위아래 깔끔하게 나열
                         seatsHtml += `
-                            <div class="bg-white border ${borderColor} font-mono font-bold text-sm px-3.5 pt-4 pb-2 rounded-xl shadow-sm flex items-center gap-1.5 relative mt-2">
-                                <span class="absolute -top-2.5 left-3 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${badgeBg} shadow-2xs">이번 달 ${freqCount}회</span>
-                                ${seat}
+                            <div class="bg-white border ${borderColor} rounded-xl shadow-sm flex flex-col items-center py-2 px-3 mt-2 w-auto">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${badgeBg} mb-1.5 whitespace-nowrap tracking-tight w-full text-center">이번 달 ${freqCount}회</span>
+                                <div class="font-mono font-bold text-sm flex items-center justify-center gap-1 w-full text-slate-700">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    ${seat}
+                                </div>
                             </div>
                         `;
                     });
@@ -425,7 +415,6 @@
                 logs.unshift(sessionRecord);
                 saveStoredLogs(logs);
 
-                // 구글 스프레드시트로 전송 (기기 이름 포함)
                 try {
                     const sheetPayload = {
                         action: "save",
@@ -476,7 +465,7 @@
                             <span class="font-bold text-indigo-600">기록 일시: ${log.timestamp}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-slate-500 text-[11px]">미신청 ${log.unauthorizedCount}명 / 하원 ${log.absentCount}명</span>
-                                <button onclick="deleteSingleLog('${log.id}')" class="text-rose-500 bg-white px-2 py-0.5 border border-rose-200 text-[11px]">삭제</button>
+                                <button onclick="deleteSingleLog('${log.id}')" class="text-rose-500 bg-white px-2 py-0.5 border border-rose-200 text-[11px] rounded">개별 삭제</button>
                             </div>
                         </div>
                         <div class="text-xs space-y-2 font-mono">
