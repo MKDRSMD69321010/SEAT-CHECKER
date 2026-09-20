@@ -474,10 +474,12 @@
             // Record execution timestamp with weekday
             const now = new Date();
             const timestampStr = formatDateTimeWithWeekday(now);
+            const currentDateOnly = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             
             document.getElementById('timestampValue').textContent = timestampStr;
 
             const sessionRecord = {
+                dateOnly: currentDateOnly,
                 timestamp: timestampStr,
                 appliedSeats: appliedList,
                 currentSeats: currentList,
@@ -494,9 +496,23 @@
             try {
                 checkMonthlyReset();
                 let existingLogs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
-                existingLogs.unshift(sessionRecord);
-                if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50);
-                localStorage.setItem('seat_comparison_logs', JSON.stringify(existingLogs));
+                
+                // Check if a log with the exact same date and identical input sets already exists
+                const isDuplicate = existingLogs.some(log => {
+                    if (log.dateOnly !== currentDateOnly) return false;
+                    const logApplied = log.appliedSeats || [];
+                    const logCurrent = log.currentSeats || [];
+                    if (logApplied.length !== appliedList.length || logCurrent.length !== currentList.length) return false;
+                    const sameApplied = logApplied.every((val, idx) => val === appliedList[idx]);
+                    const sameCurrent = logCurrent.every((val, idx) => val === currentList[idx]);
+                    return sameApplied && sameCurrent;
+                });
+
+                if (!isDuplicate) {
+                    existingLogs.unshift(sessionRecord);
+                    if (existingLogs.length > 50) existingLogs = existingLogs.slice(0, 50);
+                    localStorage.setItem('seat_comparison_logs', JSON.stringify(existingLogs));
+                }
             } catch (e) {
                 console.warn("Could not save session logs to localStorage:", e);
             }
@@ -531,9 +547,9 @@
                     </div>
                 `;
             } else {
-                logs.forEach((log) => {
+                logs.forEach((log, index) => {
                     const logCard = document.createElement('div');
-                    logCard.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3';
+                    logCard.className = 'bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 relative';
                     
                     // Helper to render grouped floors HTML inside history
                     function renderGroupsHtml(groups) {
@@ -574,7 +590,10 @@
                                 </svg>
                                 기록 일시: ${log.timestamp}
                             </span>
-                            <span class="text-slate-500 text-[11px]">미신청 ${log.unauthorizedCount}명 / 하원 ${log.absentCount}명</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500 text-[11px]">미신청 ${log.unauthorizedCount}명 / 하원 ${log.absentCount}명</span>
+                                <button onclick="deleteSingleLog(${index})" class="text-rose-500 hover:text-rose-700 bg-white hover:bg-rose-50 px-2 py-0.5 rounded border border-rose-200 transition text-[11px] font-medium">개별 삭제</button>
+                            </div>
                         </div>
                         <div class="text-xs space-y-2 font-mono">
                             <div class="bg-emerald-50 p-2.5 rounded-lg border border-emerald-100">
@@ -600,6 +619,19 @@
             }
 
             document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        function deleteSingleLog(index) {
+            try {
+                let logs = JSON.parse(localStorage.getItem('seat_comparison_logs') || '[]');
+                if (index >= 0 && index < logs.length) {
+                    logs.splice(index, 1);
+                    localStorage.setItem('seat_comparison_logs', JSON.stringify(logs));
+                    openHistoryModal(); // Refresh modal view
+                }
+            } catch (e) {
+                console.warn("Could not delete single log:", e);
+            }
         }
 
         function closeHistoryModal() {
