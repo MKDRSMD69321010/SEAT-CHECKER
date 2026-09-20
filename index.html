@@ -34,6 +34,8 @@
         .log-row-top { display: flex; justify-content: space-between; font-weight: bold; color: #495057; margin-bottom: 6px; border-bottom: 1px dashed #dee2e6; padding-bottom: 4px; }
         .del-single-btn { background: #fa5252; color: white; border: none; padding: 2px 6px; font-size: 11px; border-radius: 4px; cursor: pointer; }
         .del-single-btn:hover { background: #e03131; }
+        .sync-btn { background: #27ae60; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .sync-btn:hover { background: #219653; }
     </style>
 </head>
 <body>
@@ -76,18 +78,22 @@
 <div id="logModal" class="modal">
     <div class="modal-body">
         <span class="close-btn" onclick="closeLogModal()">&times;</span>
-        <h2 style="margin-top:0; color:#2c3e50; font-size: 20px;">심야자습 신청기록 (구글 스프레드시트 연동)</h2>
-        <div style="margin-bottom: 15px;">
-            <button class="del-single-btn" style="background:#e74c3c; padding:6px 12px; font-size:13px;" onclick="clearAllLogs()">기록 전체 삭제</button>
+        <h2 style="margin-top:0; color:#2c3e50; font-size: 20px;">심야자습 신청기록</h2>
+        <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <button class="sync-btn" onclick="syncFromCloud()">🔄 스프레드시트에서 기록 가져오기</button>
+            </div>
+            <div>
+                <button class="del-single-btn" style="background:#e74c3c; padding:6px 12px; font-size:13px;" onclick="clearAllLogs()">기록 전체 삭제</button>
+            </div>
         </div>
         <div id="logContentContainer">기록을 불러오는 중...</div>
     </div>
 </div>
 
 <script>
-    // 앞서 발급받으신 구글 앱스크립트 웹 앱 URL을 그대로 입력해 둡니다.
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw5-7fqB3JgRXD9i2J3V57-VXnDDpI71KQc79ihfXG45YD3RNoMMa5m99sC-t8Ohs0Y2g/exec";
-    const DEVICE_NAME = "기기_" + Math.floor(Math.random() * 1000);
+    // 새로 발급받으신 구글 앱스크립트 웹 앱 URL 적용 완료
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSVaCgb2PBy-KQQ7U4fDZGhXNv83pKpsQs-PjzuHioH1H4caj0anr6-U4S42w4nfbeVw/exec";
 
     // 실시간 시계 (요일 포함)
     function updateClock() {
@@ -115,27 +121,27 @@
         return text.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
     }
 
-    let cloudRecords = [];
-
-    // 구글 스프레드시트로부터 기록 불러오기
-    async function fetchCloudRecords() {
+    // 로컬 스토리지 기반 기록 관리
+    function getLocalLogs() {
         try {
-            const res = await fetch(SCRIPT_URL);
-            const data = await res.json();
-            cloudRecords = data;
-        } catch (e) {
-            console.error("기록 동기화 실패:", e);
+            return JSON.parse(localStorage.getItem('studyLogs') || '[]');
+        } catch(e) {
+            return [];
         }
     }
-    fetchCloudRecords();
 
-    // 이번 달 누적 적발 횟수 계산 (스프레드시트 데이터 기준)
+    function saveLocalLogs(logs) {
+        localStorage.setItem('studyLogs', JSON.stringify(logs));
+    }
+
+    // 이번 달 누적 적발 횟수 계산 (로컬 기록 기준)
     function getThisMonthCount(seat) {
+        const logs = getLocalLogs();
         const now = new Date();
         const currentYearMonth = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}`;
         let count = 0;
 
-        cloudRecords.forEach(rec => {
+        logs.forEach(rec => {
             if (rec.timestamp.startsWith(currentYearMonth)) {
                 try {
                     let unregObj = JSON.parse(rec.unreg || "{}");
@@ -229,9 +235,7 @@
             return obj;
         };
 
-        const payload = {
-            action: "save",
-            deviceName: DEVICE_NAME,
+        const newRecord = {
             timestamp: timestamp,
             applied: JSON.stringify(formatByFloor(appliedList)),
             active: JSON.stringify(formatByFloor(activeList)),
@@ -239,25 +243,39 @@
             left: JSON.stringify(formatByFloor(leftUnique))
         };
 
-        try {
-            const res = await fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            });
-            const result = await res.json();
-            if (result.status === "duplicate") {
-                alert("동일한 값이 같은 일자에 기록되어 있습니다.");
+        // 당일 동일 값 중복 검사 (요구사항: "동일한 값이 같은 일자에 기록되어 있습니다.")
+        const logs = getLocalLogs();
+        const todayDateStr = timestamp.split('(')[0].trim();
+        const isDuplicate = logs.some(log => {
+            if (log.timestamp.startsWith(todayDateStr)) {
+                return log.applied === newRecord.applied && log.active === newRecord.active;
             }
-            await fetchCloudRecords();
+            return false;
+        });
+
+        if (isDuplicate) {
+            alert("동일한 값이 같은 일자에 기록되어 있습니다.");
+            return;
+        }
+
+        // 로컬에 저장
+        logs.unshift(newRecord);
+        saveLocalLogs(logs);
+
+        // 구글 스프레드시트로도 자동 전송 시도 (백그라운드)
+        try {
+            await fetch(SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "save", ...newRecord })
+            });
         } catch (e) {
-            console.error("저장 실패:", e);
+            console.error("스프레드시트 전송 실패:", e);
         }
     }
 
     // 모달 관리
-    async function openLogModal() {
+    function openLogModal() {
         document.getElementById('logModal').style.display = 'block';
-        await fetchCloudRecords();
         renderLogList();
     }
 
@@ -269,12 +287,13 @@
         const container = document.getElementById('logContentContainer');
         container.innerHTML = "";
 
-        if (cloudRecords.length === 0) {
+        const logs = getLocalLogs();
+        if (logs.length === 0) {
             container.innerHTML = "<p style='color:#7f8c8d;'>저장된 신청 기록이 없습니다.</p>";
             return;
         }
 
-        cloudRecords.forEach(rec => {
+        logs.forEach((rec, index) => {
             const row = document.createElement('div');
             row.className = 'log-row';
 
@@ -293,8 +312,8 @@
 
             row.innerHTML = `
                 <div class="log-row-top">
-                    <span>📅 ${rec.timestamp} <span style="font-size:11px; color:#888;">(${rec.deviceName || 'PC'})</span></span>
-                    <button class="del-single-btn" onclick="deleteSingleRow('${rec.timestamp}')">개별 삭제</button>
+                    <span>📅 ${rec.timestamp}</span>
+                    <button class="del-single-btn" onclick="deleteSingleRow(${index})">개별 삭제</button>
                 </div>
                 <div style="line-height:1.6; color:#444;">
                     <div>1. 심야자습 신청 좌석: ${formatDetailed(rec.applied)}</div>
@@ -307,33 +326,54 @@
         });
     }
 
-    async function deleteSingleRow(timestamp) {
-        if (!confirm(`[${timestamp}] 기록을 삭제하시겠습니까?`)) return;
+    // 구글 스프레드시트에서 기록을 가져와 로컬 기록에 합치기 (동기화)
+    async function syncFromCloud() {
         try {
-            await fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "deleteRow", timestamp: timestamp })
+            const res = await fetch(SCRIPT_URL);
+            const cloudRecords = await res.json();
+            
+            if (!Array.isArray(cloudRecords) || cloudRecords.length === 0) {
+                alert("스프레드시트에 가져올 기록이 없습니다.");
+                return;
+            }
+
+            const localLogs = getLocalLogs();
+            let addedCount = 0;
+
+            // 스프레드시트의 기록 중 로컬에 없는 것만 골라서 추가
+            cloudRecords.forEach(cloudRec => {
+                const exists = localLogs.some(local => local.timestamp === cloudRec.timestamp);
+                if (!exists) {
+                    localLogs.push(cloudRec);
+                    addedCount++;
+                }
             });
-            await fetchCloudRecords();
+
+            // 최신순 정렬
+            localLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            saveLocalLogs(localLogs);
             renderLogList();
-        } catch(e) {
-            alert("삭제 중 오류가 발생했습니다.");
+
+            alert(`스프레드시트에서 총 ${addedCount}개의 새로운 기록을 성공적으로 가져왔습니다.`);
+        } catch (e) {
+            console.error(e);
+            alert("스프레드시트에서 기록을 가져오는 중 오류가 발생했습니다.");
         }
     }
 
-    async function clearAllLogs() {
+    function deleteSingleRow(index) {
+        let logs = getLocalLogs();
+        if (!confirm(`[${logs[index].timestamp}] 기록을 삭제하시겠습니까?`)) return;
+        logs.splice(index, 1);
+        saveLocalLogs(logs);
+        renderLogList();
+    }
+
+    function clearAllLogs() {
         if (!confirm("모든 기록을 삭제하시겠습니까? (복구할 수 없습니다)")) return;
-        try {
-            await fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "deleteAll" })
-            });
-            cloudRecords = [];
-            renderLogList();
-            alert("전체 기록이 삭제되었습니다.");
-        } catch(e) {
-            alert("전체 삭제 중 오류가 발생했습니다.");
-        }
+        localStorage.removeItem('studyLogs');
+        renderLogList();
+        alert("전체 기록이 삭제되었습니다.");
     }
 
     window.onclick = function(event) {
