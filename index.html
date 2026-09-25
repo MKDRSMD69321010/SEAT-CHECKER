@@ -36,7 +36,6 @@
     </header>
 
     <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
-        <!-- Instructions Panel -->
         <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-6 shadow-sm">
             <h2 class="text-sm font-semibold text-blue-900 mb-1 flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,12 +44,11 @@
                 사용 안내 및 교시별 업데이트 안내
             </h2>
             <p class="text-xs text-blue-800 leading-relaxed">
-    좌측에는 자습을 신청한 좌석번호를, 우측에는 현재 자습 중인 좌석번호를 입력하세요. 좌석번호는 형식(예: 층-000 ~ 층-999) 내 검증을 거치며 올바른 형식만 허용됩니다.<br>
-    같은 교시 내에 재실행 시 기존 기록을 업데이트하며, 변경 이력이 타임라인 형식으로 자동 기록됩니다.
-</p>
+                좌측에는 자습을 신청한 좌석번호를, 우측에는 현재 자습 중인 좌석번호를 입력하세요. 좌석번호는 형식(예: 층-000 ~ 층-999) 내 검증을 거치며 올바른 형식만 허용됩니다.<br>
+                같은 교시 내에 재실행 시 기존 기록을 업데이트하며, 변경 이력이 타임라인 형식으로 자동 기록됩니다.
+            </p>
         </div>
 
-        <!-- Input Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col">
                 <div class="flex justify-between items-center mb-3">
@@ -77,7 +75,6 @@
             </div>
         </div>
 
-        <!-- Action Controls -->
         <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
             <button onclick="compareSeats()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +104,6 @@
                 <span class="text-indigo-600 bg-white px-2.5 py-1 rounded-lg border border-indigo-100 font-semibold shadow-xs">기록 저장됨</span>
             </div>
 
-            <!-- Unauthorized Section -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-2">
                     <div>
@@ -127,7 +123,6 @@
                 <div id="unauthorizedContent" class="space-y-4"></div>
             </div>
 
-            <!-- Absent / Left Section -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 pb-4 border-b border-slate-100 gap-2">
                     <div>
@@ -184,7 +179,8 @@
     </div>
 
     <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyQycOLpZPAsLN2BTdUu1CqlsviwRRSyoCrJpHOfFn-Vf4uxto9dhAddyxX2rWjBGuJaQ/exec";
+        // ★여기에 구글 앱스크립트 배포 URL이 있어야 합니다!★
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_Y486q9RVPG-HZ8N7OmrC-b4HW0dZMiO8fNnyxDhAvh7OAsW5VtN27F03r4JrCpCo/exec"; 
 
         function getDeviceName() {
             let name = localStorage.getItem('seat_checker_device_name');
@@ -207,7 +203,6 @@
         }
         checkMonthlyReset();
 
-        // 표준시간표 기반 교시 판별 함수 (00:01~06:59는 테스트용 "심야예외")
         function detectPeriod(date) {
             const hours = date.getHours();
             const minutes = date.getMinutes();
@@ -482,7 +477,9 @@
                     applied: JSON.stringify(sessionRecord.appliedGroups),
                     active: JSON.stringify(sessionRecord.currentGroups),
                     unreg: JSON.stringify(sessionRecord.unauthorizedGroups),
-                    left: JSON.stringify(sessionRecord.absentGroups)
+                    left: JSON.stringify(sessionRecord.absentGroups),
+                    // ★이 부분이 추가되었습니다: 이벤트 로그를 스프레드시트로 전송합니다★
+                    events: JSON.stringify(sessionRecord.seatEventLogs) 
                 };
                 fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(sheetPayload) });
             } catch (e) { console.error("스프레드시트 전송 실패:", e); }
@@ -599,6 +596,9 @@
                             const currentGroups = JSON.parse(cloudRec.active || "{}");
                             const unauthGroups = JSON.parse(cloudRec.unreg || "{}");
                             const absentGroups = JSON.parse(cloudRec.left || "{}");
+                            
+                            // ★스프레드시트에서 가져온 타임라인 기록을 다시 복원합니다★
+                            const seatEventLogs = JSON.parse(cloudRec.events || "{}");
 
                             localLogs.push({
                                 id: 'log_cloud_' + Date.now() + Math.random(),
@@ -615,7 +615,7 @@
                                 currentGroups: currentGroups,
                                 unauthorizedGroups: unauthGroups,
                                 absentGroups: absentGroups,
-                                seatEventLogs: {}
+                                seatEventLogs: seatEventLogs
                             });
                             addedCount++;
                         } catch(e) {}
